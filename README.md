@@ -1,7 +1,7 @@
 # Pseudo-Label Selection for label noise (PLS)
 Official repository for Is your noise correction noisy? PLS: Robustness to label noise with two stage detection WACV 2023 [paper](https://arxiv.org/abs/2210.04578)
 
-[!PLS](PLS.png)
+![PLS](PLS.png)
 
 ### Dependencies
 
