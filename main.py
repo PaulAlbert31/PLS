@@ -120,7 +120,9 @@ class Trainer(object):
                 weights = weights.cuda()
                 if epoch < self.args.warmup:
                     loss_c = multi_class_loss(outputs, target)
-                else:
+                elif self.args.mixup:
+                    loss_c = lam * (multi_class_loss(outputs, la) * weights).sum() / weights.sum() + (1-lam) * (multi_class_loss(outputs, lb) * weights[o]).sum() / weights[o].sum()
+                else: #no mixup post warmup
                     loss_c = (multi_class_loss(outputs, target) * weights).sum() / weights.sum()
                     
                 if not self.args.mixup and epoch >= self.args.warmup:
@@ -413,8 +415,8 @@ def main():
  
     targets = torch.argmax(_trainer.train_loader.dataset.targets, dim=-1)
     preds = torch.ones(len(targets))
-    features=None
-    
+    features = None
+
     for eps in range(start_ep, args.epochs):
         #Pseudo loss filtering on the noisy examples
         if eps > args.warmup and eps != start_ep and not args.no_weights and preds.sum() > 2:
@@ -428,7 +430,8 @@ def main():
             proba_ = gmm.predict_proba(interest.reshape(-1,1))[:, 0]
             if gmm.means_[1] < gmm.means_[0]:
                 proba_ = 1-proba_
-            w = torch.from_numpy(proba_).float() #w=1 means the pseudo-label can be 100% trusted                
+            w = torch.from_numpy(proba_).float() #w=1 means the pseudo-label can be 100% trusted
+
                
             _trainer.weights[preds] = w            
             
@@ -445,10 +448,10 @@ def main():
             gmm = gmm.fit(interest.reshape(-1,1))                   
             proba = gmm.predict_proba(interest.reshape(-1,1))[:, 0] #Probability to belong to the high loss mode (noisy)
             if gmm.means_[0] < gmm.means_[1]:
-                proba = 1-proba                        
+                proba = 1-proba
+
+            preds = torch.from_numpy(proba > args.thresh).bool() #Fixed thresold on the noisiness
                         
-            preds = torch.from_numpy(proba > args.thresh).bool() #Fixed thresold on the noisiness            
-            
             _trainer.is_clean = ~preds
             _trainer.is_idn = preds                
                 
